@@ -1,0 +1,134 @@
+version: '3.8'
+
+services:
+  etcd:
+    image: bitnami/etcd:latest
+    container_name: etcd
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes  
+      - ETCD_DATA_DIR=/etcd-data
+      - ETCD_NAME=etcd
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://etcd:2380
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
+      - ETCD_INITIAL_CLUSTER=etcd=http://etcd:2380        
+    command:
+      - /opt/bitnami/etcd/bin/etcd
+        #      - --data-dir=/etcd-data
+        #      - --name=etcd
+        #      - --initial-advertise-peer-urls=http://etcd:2380
+        #      - --listen-peer-urls=http://0.0.0.0:2380
+        #      - --listen-client-urls=http://0.0.0.0:2379
+        #      - --advertise-client-urls=http://etcd:2379
+        #      - --initial-cluster=etcd=http://etcd:2380
+        #        #      - --env ALLOW_NONE_AUTHENTICATION=yes
+    ports:
+      - "2379:2379"
+      - "2380:2380"  
+    networks:
+      - patroni-network
+    volumes:
+      - ./etcd-data:/etcd-data # Mount a named volume to persist data
+
+  patroni1:
+    image: docker.io/ongres/patroni:latest
+    container_name: patroni1
+    user: postgres  
+    environment:
+      PATRONI_NAME: patroni1
+      PATRONI_SCOPE: pg_cluster
+      PATRONI_NAMESPACE: /pg_cluster/
+      PATRONI_ETCD_HOSTS: etcd:2379
+      PATRONI_REPLICATION_USERNAME: repl
+      PATRONI_REPLICATION_PASSWORD: repl_password
+      PATRONI_SUPERUSER_USERNAME: admin
+      PATRONI_SUPERUSER_PASSWORD: admin_password
+      PATRONI_POSTGRESQL_DATA_DIR: /usr/share/postgresql/17.0
+      PATRONI_LOG_LEVEL: DEBUG      
+    volumes:
+      - ./patroni.yml:/config/patroni.yml
+      - ./postgres:/usr/share/postgresql/17.0
+        #- ./postgres:/usr/share/postgresql/17.0
+        #    environment:
+        #      - PATRONI_SCOPE=postgres-cluster
+    ports:
+      - "5433:5432"
+      - "8008:8008"
+        #    tmpfs:
+        #      - /run/postgresql:uid=1000,gid=1000,mode=775        
+        #- /run/postgresql:uid=1000,gid=1000,mode=775        
+    networks:
+      - patroni-network
+    depends_on:
+      - etcd
+
+  patroni2:
+    image: docker.io/ongres/patroni:latest
+    container_name: patroni2
+    user: postgres  
+    environment:
+      PATRONI_NAME: patroni2
+      PATRONI_SCOPE: pg_cluster
+      PATRONI_NAMESPACE: /pg_cluster/
+      PATRONI_ETCD_HOSTS: etcd:2379
+      PATRONI_REPLICATION_USERNAME: repl
+      PATRONI_REPLICATION_PASSWORD: repl_password
+      PATRONI_SUPERUSER_USERNAME: admin
+      PATRONI_SUPERUSER_PASSWORD: admin_password
+      PATRONI_POSTGRESQL_DATA_DIR: /usr/share/postgresql/17.0
+      PATRONI_LOG_LEVEL: DEBUG      
+    volumes:
+      - ./patroni.yml:/config/patroni.yml
+      - ./postgres:/usr/share/postgresql/17.0
+        #    environment:
+        #      - PATRONI_SCOPE=postgres-cluster
+    ports:
+      - "5434:5432"
+      - "8009:8008"
+        #    tmpfs:
+        #      - /run/postgresql:uid=1000,gid=1000,mode=775        
+    networks:
+      - patroni-network
+    depends_on:
+      - etcd
+
+  patroni3:
+    image: docker.io/ongres/patroni:latest
+    container_name: patroni3
+    user: postgres  
+    environment:
+      PATRONI_NAME: patroni3
+      PATRONI_SCOPE: pg_cluster
+      PATRONI_NAMESPACE: /pg_cluster/
+      PATRONI_ETCD_HOSTS: etcd:2379
+      PATRONI_REPLICATION_USERNAME: repl
+      PATRONI_REPLICATION_PASSWORD: repl_password
+      PATRONI_SUPERUSER_USERNAME: admin
+      PATRONI_SUPERUSER_PASSWORD: admin_password
+      PATRONI_POSTGRESQL_DATA_DIR: /usr/share/postgresql/17.0
+      PATRONI_LOG_LEVEL: DEBUG      
+    volumes:
+      - ./patroni.yml:/config/patroni.yml
+      - ./postgres:/usr/share/postgresql/17.0
+        #    environment:
+        #      - PATRONI_SCOPE=postgres-cluster
+    ports:      
+      - "5435:5432"
+      - "8010:8008"
+        #    tmpfs:
+        #      - /run/postgresql:uid=1000,gid=1000,mode=775        
+    networks:
+      - patroni-network
+    depends_on:
+      - etcd
+
+networks:
+  patroni-network:
+    name: patroni-network
+    driver: bridge
+
+volumes:
+  etcd-data:
+    driver: local        
+

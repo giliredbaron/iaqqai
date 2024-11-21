@@ -1,0 +1,21 @@
+services:
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.4
+    command: /usr/local/bin/etcd -advertise-client-urls http://0.0.0.0:2379 -listen-client-urls http://0.0.0.0:2379
+    ports:
+      - "2379:2379"
+
+  patroni:
+    image: ongres/patroni:latest
+    ports:
+      - "8008:8008"
+      - "5432:5432"
+    environment:
+      PATRONI_CONFIG: /home/postgres/patroni.yml
+    volumes:
+      - ./configs:/home/postgres/configs
+      - patroni-data:/home/postgres/pgdata
+    depends_on:
+      - etcd
+volumes:
+  patroni-data:

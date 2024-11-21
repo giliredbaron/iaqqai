@@ -1,0 +1,117 @@
+
+services:
+  etcd:
+    image: bitnami/etcd:latest
+    container_name: etcd
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+      - ETCD_DATA_DIR=/etcd-data
+      - ETCD_NAME=etcd
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://etcd:2380
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
+    command:
+      - /opt/bitnami/etcd/bin/etcd
+    ports:
+      - "2379:2379"
+      - "2380:2380"
+    networks:
+      - patroni-network
+    volumes:
+      - ./etcd-data:/etcd-data # Mount a named volume to persist data
+
+  patroni1:
+    image: registry.opensource.zalan.do/acid/spilo-15
+    #image: ongres/patroni:latest
+    #image:  anapaya/patroni:latest
+    #image:  zalando/patroni:latest
+    container_name: patroni1
+    user: postgres
+    networks:
+      - patroni-network
+    volumes:
+      - ./postgres_conf/postgresql.conf:/postgres_conf/postgresql.conf
+      - ./postgres_data/:/postgres_data/
+      - ./patroni.yml:/config/patroni.yml
+    environment:
+      PATRONI_SCOPE: patroni
+      PATRONI_NAMESPACE: /service/
+      PATRONI_NAME: patroni1
+      PATRONI_RESTAPI_LISTEN: 0.0.0.0:8008
+      PATRONI_RESTAPI_CONNECT_ADDRESS: patroni1:8008
+        #PATRONI_ETCD_HOST:  etcd
+      PATRONI_ETCD3_HOSTS: etcd
+      PATRONI_DCS: etcd3  
+      ETCDCTL_API: 3   
+      PATRONI_CONFIG: /config/patroni.yml  
+      PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: patroni1:5432
+      PATRONI_POSTGRESQL_DATA_DIR: /postgres_data
+      PATRONI_POSTGRESQL_CONFIG_DIR: /postgres_conf
+      PATRONI_POSTGRESQL_PARAMETERS_CONFIG_FILE: /postgres_conf/postgresql.conf
+      PATRONI_POSTGRESQL_AUTHENTICATION_SUPERUSER_USERNAME: postgres
+      PATRONI_POSTGRESQL_AUTHENTICATION_SUPERUSER_PASSWORD: ZmNrIGhtcwo=
+      PATRONI_POSTGRESQL_AUTHENTICATION_REPLICATION_USERNAME: replicator
+      PATRONI_POSTGRESQL_AUTHENTICATION_REPLICATION_PASSWORD: ZmNrIGhtcyA0ZzAwZAo=
+      PATRONI_LOG_LEVEL: DEBUG  
+      ETCD3_HOST: etcd
+        #ETCD_HOST: etcd:2379
+    tmpfs:
+      - /run/postgresql    #:uid=1000,gid=1000,mode=775
+
+    ports:
+      - "5432:5432"
+      - "8008:8008"
+    depends_on:
+      - etcd
+        #    entrypoint: /bin/bash -c "echo 'Starting Patroni'; /usr/local/bin/patroni /config/patroni.yml"    
+
+
+  patroni2:
+    image: registry.opensource.zalan.do/acid/spilo-15
+    #image: ongres/patroni:latest
+    #image:  anapaya/patroni:latest
+    container_name: patroni2
+    user: postgres
+    networks:
+      - patroni-network
+    volumes:
+      - ./postgres_conf/postgresql.conf:/postgres_conf/postgresql.conf
+      - ./postgres_data/:/postgres_data/
+      - ./patroni.yml:/config/patroni.yml
+    environment:
+      PATRONI_SCOPE: patroni
+      PATRONI_NAMESPACE: /service/
+      PATRONI_NAME: patroni2
+      PATRONI_RESTAPI_LISTEN: 0.0.0.0:8008
+      PATRONI_RESTAPI_CONNECT_ADDRESS: patroni2:8008
+        #PATRONI_ETCD_HOST:  etcd
+      PATRONI_ETCD3_HOSTS: etcd
+      PATRONI_DCS: etcd3  
+      ETCDCTL_API: 3   
+      PATRONI_CONFIG: /config/patroni.yml  
+      PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: patroni1:5432
+      PATRONI_POSTGRESQL_DATA_DIR: /postgres_data
+      PATRONI_POSTGRESQL_CONFIG_DIR: /postgres_conf
+      PATRONI_POSTGRESQL_PARAMETERS_CONFIG_FILE: /postgres_conf/postgresql.conf
+      PATRONI_LOG_LEVEL: DEBUG  
+      PATRONI_POSTGRESQL_AUTHENTICATION_SUPERUSER_USERNAME: postgres
+      PATRONI_POSTGRESQL_AUTHENTICATION_SUPERUSER_PASSWORD: ZmNrIGhtcwo=
+      PATRONI_POSTGRESQL_AUTHENTICATION_REPLICATION_USERNAME: replicator
+      PATRONI_POSTGRESQL_AUTHENTICATION_REPLICATION_PASSWORD: ZmNrIGhtcyA0ZzAwZAo=
+      ETCD3_HOST: etcd
+        #ETCD_HOST: etcd:2379
+    tmpfs:
+      - /run/postgresql    #:uid=1000,gid=1000,mode=775
+
+    ports:
+      - "5433:5432"
+      - "8009:8008"
+    depends_on:
+      - etcd
+networks:
+  patroni-network:
+    driver: bridge
+
